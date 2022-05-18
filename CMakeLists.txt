@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 # Add source to this project's executable.
-add_executable (colourful "colourful.cpp" "colourful.h")
+add_executable (colourful "colourful.cpp" "colourful.h" "ansi.h")
 
 message("Fetching GoogleTest/GoogleMock...")
 FetchContent_Declare(
