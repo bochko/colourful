@@ -3,10 +3,8 @@
 
 #include "colourful.h"
 
-using namespace std;
-
 int main()
 {
-	cout  << red.string_view() << "this text" << reset.string_view() << endl;
+	std::cout  << kRed.string_view() << "this text" << kReset.string_view() << std::endl;
 	return 0;
 }

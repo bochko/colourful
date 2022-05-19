@@ -6,6 +6,132 @@
 #include <iostream>
 #include <array>
 #include <string_view>
+#include <tuple>
+#include <concepts>
+
+namespace colourful::constant {
+
+	static constexpr auto Esc = '\x1B';
+	static constexpr auto Csi = '[';
+	static constexpr auto Mmm = 'm';
+	
+}
+
+namespace colourful::consteval_chars {
+namespace type {
+
+template <unsigned... digits>
+struct ToCharArray {
+	static constexpr auto value = std::array<char, sizeof...(digits)>{('0' + digits)...};
+};
+
+template <unsigned remainder, unsigned... digits>
+struct ToChars : ToChars<(remainder / 10), (remainder % 10), digits...>{};
+
+template <unsigned... digits>
+struct ToChars<0, digits...> : ToCharArray<digits...>{};
+
+template <>
+struct ToChars<0> : ToCharArray<0>{};
+}
+
+template <unsigned... digits>
+static constexpr auto ToChars = type::ToChars<digits...>::value;
+
+/* test */ static constexpr auto test = ToChars<19>;
+
+}
+
+namespace colourful::tparam {
+namespace type {
+	template <auto... args>
+	struct ToArray {
+		static constexpr auto value = std::array{ args... };
+	};
+}
+
+template <auto... args>
+static constexpr auto ToArray = type::ToArray<args...>::value;
+
+/* test */ static constexpr auto test = ToArray<'1', '2', '3'>;
+
+}
+
+namespace colourful::combine {
+namespace type {
+template <
+	auto element,
+	auto array,
+	typename IndexSequence = std::make_index_sequence<array.size()>>
+struct Precede {};
+
+template <
+	auto element,
+	auto array,
+	std::size_t... Index>
+struct Precede<element, array, std::index_sequence<Index...>> {
+	static constexpr auto value = colourful::tparam::ToArray<
+		element, array[Index]...
+	>;
+};
+
+template <
+	auto element,
+	auto array,
+	typename IndexSequence = std::make_index_sequence<array.size()>>
+struct Trail {};
+
+template <
+	auto element,
+	auto array,
+	std::size_t... Index>
+struct Trail<element, array, std::index_sequence<Index...>> {
+	static constexpr auto value = colourful::tparam::ToArray<
+		array[Index]..., element
+	>;
+};
+
+}
+
+template <auto element, auto array>
+static constexpr auto Precede = type::Precede<element, array>::value;
+
+template <auto element, auto array>
+static constexpr auto Trail = type::Trail<element, array>::value;
+
+
+/* test */ static constexpr auto testPrecede = Precede<'a', consteval_chars::ToChars<69>>;
+/* test */ static constexpr auto testTrail = Trail<'a', consteval_chars::ToChars<69>>;
+
+}
+
+namespace colourful::ansi {
+namespace type {
+template <unsigned code>
+class Format3Bit {
+public:
+	constexpr auto string_view() const noexcept {
+		return std::string_view{value.begin(), value.end()};
+	}
+private:
+	static constexpr auto value = combine::Trail<
+	constant::Mmm,
+	combine::Precede<
+		constant::Esc, 
+		combine::Precede<
+			constant::Csi,
+			consteval_chars::ToChars<code>>>>;
+};
+
+}
+
+template <unsigned code>
+static constexpr auto Format3Bit = type::Format3Bit<code>{};
+
+}
+
+static constexpr auto kReset = colourful::ansi::Format3Bit<0>;
+static constexpr auto kRed = colourful::ansi::Format3Bit<31>;
 
 namespace colourful::control_sequence {
 namespace utility {
@@ -78,20 +204,20 @@ namespace utility {
 		>::value;
 	};
 
-	template <auto ...arrays>
-	consteval auto concat_arrays() {
-		constexpr std::size_t n_arrays = sizeof...(arrays);
-		constexpr auto aggregate = std::make_tuple(arrays...);
-		using return_type = std::array<char, arrays.size()...>;
-		auto ret = return_type{};
-		std::size_t ret_tracker = 0;
-		for (std::size_t over_aggregate = 0; over_aggregate < n_arrays; ++over_aggregate) {
-			ret[ret_tracker++] = std::get<over_aggregate>(aggregate);
-		}
-		return true;
-	}
+	// template <auto ...arrays>
+	// consteval auto concat_arrays() {
+	// 	constexpr std::size_t n_arrays = sizeof...(arrays);
+	// 	constexpr auto aggregate = std::make_tuple(arrays...);
+	// 	using return_type = std::array<char, arrays.size()...>;
+	// 	auto ret = return_type{};
+	// 	std::size_t ret_tracker = 0;
+	// 	for (std::size_t over_aggregate = 0; over_aggregate < n_arrays; ++over_aggregate) {
+	// 		ret[ret_tracker++] = std::get<over_aggregate>(aggregate);
+	// 	}
+	// 	return true;
+	// }
 
-	constexpr auto a = concat_arrays <std::array<char, 2>{'g', 'h'}> ();
+	// constexpr auto a = concat_arrays <std::array<char, 2>{'g', 'h'}> ();
 
 
 }
